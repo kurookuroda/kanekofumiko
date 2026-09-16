@@ -114,13 +114,13 @@ class App:
         self.snd_talk.set("c3", "n", "2", "n", 1)
         # SPACE長押し（中速）
         self.snd_talk_space = pyxel.Sound()
-        self.snd_talk_space.set("c3", "n", "3", "n", 1)
+        self.snd_talk_space.set("c3", "t", "3", "n", 1)
         # DOWN+A（高速・短く鋭く）
         self.snd_talk_fast = pyxel.Sound()
-        self.snd_talk_fast.set("c3", "n", "3", "f", 1)
+        self.snd_talk_fast.set("c3", "t", "3", "f", 1)
         # DOWN+B（最速・さらに大きく短く）
         self.snd_talk_faster = pyxel.Sound()
-        self.snd_talk_faster.set("c3", "n", "5", "f", 1)
+        self.snd_talk_faster.set("c3", "t", "5", "f", 1)
 
         pyxel.run(self.update, self.draw)
 
