@@ -12,10 +12,11 @@ FONT_SIZE_DEFAULT = 12
 SCREEN_W = 256
 SCREEN_H = 256
 
+# テキストエリア（イラスト無しの現段階では上の背景を減らして広く取る）
 BOX_X = 8
-BOX_Y = 160
+BOX_Y = 40    # 160 -> 40 に変更。上の空白（背景）を縮小
 BOX_W = 240
-BOX_H = 88
+BOX_H = 208   # 88 -> 208 に変更。テキストエリアを縦に拡大
 PADDING = 8
 MAX_TEXT_W = BOX_W - PADDING * 2
 
