@@ -110,12 +110,13 @@ class App:
         self.skip_cooldown = 0
 
         # ---- タイプライター音（ドラクエ風 ノイズ音）----
+        # 音程はすべて c3 で統一。speed だけ変えて再生長を調整
         self.snd_talk_slow = pyxel.Sound()
-        self.snd_talk_slow.set("c3", "t", "1", "n", 1)
+        self.snd_talk_slow.set("c3", "n", "1", "n", 1)    # 通常: 長め
         self.snd_talk_fast = pyxel.Sound()
-        self.snd_talk_fast.set("e3", "t", "1", "n", 2)
+        self.snd_talk_fast.set("c3", "t", "1", "n", 3)    # 高速: 短め
         self.snd_talk_faster = pyxel.Sound()
-        self.snd_talk_faster.set("g3", "t", "1", "n", 4)
+        self.snd_talk_faster.set("c3", "t", "1", "n", 6)  # 最速: 最短
 
         pyxel.run(self.update, self.draw)
 
@@ -164,20 +165,19 @@ class App:
     def _down_alone_pressed(self):
         """
         下矢印が単独で押された（A/B と同時押しではない）。
-        ページ送り・スキップ用。btnp（単発）で判定。
+        文字送りスキップ・次ページ進行用。btnp（単発）で判定。
         """
         down = pyxel.btnp(pyxel.KEY_DOWN) or _btnp(GAMEPAD_DOWN)
-        # A または B が押されていたら「組み合わせ」とみなし、単独扱いにしない
         a_held = pyxel.btn(pyxel.KEY_Z) or _btn(GAMEPAD_A)
         b_held = pyxel.btn(pyxel.KEY_X) or _btn(GAMEPAD_B)
         return down and not (a_held or b_held)
 
     def _skip_pressed(self):
-        """ENTER / クリック / Aボタン でスキップ"""
+        """即表示スキップ（ENTER / クリック / 下矢印単独）"""
         return (
             pyxel.btnp(pyxel.KEY_RETURN)
             or pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT)
-            or _btnp(GAMEPAD_A)
+            or self._down_alone_pressed()
         )
 
     def _back_pressed(self):
@@ -188,22 +188,24 @@ class App:
         )
 
     def _next_pressed(self):
-        """ページ完了後の次ページ進行"""
+        """
+        ページ完了後の次ページ進行。
+        下矢印単独 / ENTER / クリック のみ。A/B は含めない。
+        """
         return (
             self._down_alone_pressed()
             or pyxel.btnp(pyxel.KEY_RETURN)
             or pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT)
-            or _btnp(GAMEPAD_A)
         )
 
     def _super_speed_combo(self):
-        """DOWN + B 同時押し（最速）。btn（長押し）で判定。"""
+        """DOWN + B 同時押し（最速）。btn（長押し）で判定。B単体では絶対に真にならない"""
         down = pyxel.btn(pyxel.KEY_DOWN) or _btn(GAMEPAD_DOWN)
         b_btn = pyxel.btn(pyxel.KEY_X) or _btn(GAMEPAD_B)
         return down and b_btn
 
     def _speed_combo(self):
-        """DOWN + A 同時押し（高速）。btn（長押し）で判定。"""
+        """DOWN + A 同時押し（高速）。btn（長押し）で判定。A単体では絶対に真にならない"""
         down = pyxel.btn(pyxel.KEY_DOWN) or _btn(GAMEPAD_DOWN)
         a_btn = pyxel.btn(pyxel.KEY_Z) or _btn(GAMEPAD_A)
         return down and a_btn
@@ -242,7 +244,7 @@ class App:
         return CHAR_INTERVAL, 1
 
     def _play_talk_sound(self, interval, chars_per_tick):
-        """タイピング速度に応じたドラクエ風話し声を再生"""
+        """タイピング速度に応じたドラクエ風話し声を再生。音程は常に同じ"""
         if interval == 0 and chars_per_tick >= 2:
             pyxel.play(0, self.snd_talk_faster)
         elif interval == 0:
@@ -281,23 +283,23 @@ class App:
         if not self.page_done:
             # ---- 文字送り中 ----
 
-            # 速度コンボを先に判定（コンボ優先）
-            interval, chars_per_tick = self._get_typing_speed()
-
-            # スキップ（DOWN単独 / ENTER / クリック / A）
-            # コンボ中は _down_alone_pressed が False になるのでスキップしない
-            if self._skip_pressed() or self._down_alone_pressed():
-                self.revealed = len(text)
-                self.page_done = True
-                self.skip_cooldown = 8
-                return
-
             # タイピング中でも ↑ で前ページに戻れる
             if self._back_pressed() and self.page_index > 0:
                 self.page_index -= 1
                 self.revealed = len(self.current_page_text)
                 self.page_done = True
                 return
+
+            # スキップ（DOWN単独 / ENTER / クリック）
+            # コンボ中は _down_alone_pressed が False になるのでスキップしない
+            if self._skip_pressed():
+                self.revealed = len(text)
+                self.page_done = True
+                self.skip_cooldown = 8
+                return
+
+            # 速度コンボ判定
+            interval, chars_per_tick = self._get_typing_speed()
 
             self.timer += 1
             if self.timer >= interval:
