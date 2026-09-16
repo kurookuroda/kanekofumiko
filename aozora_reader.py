@@ -130,13 +130,13 @@ class App:
         self.skip_cooldown = 0
 
         self.snd_talk = pyxel.Sound()
-        self.snd_talk.set("c3", "n", "2", "n", 1)
+        self.snd_talk.set("c3", "t", "2", "n", 1)
         self.snd_talk_space = pyxel.Sound()
-        self.snd_talk_space.set("c3", "n", "3", "n", 1)
+        self.snd_talk_space.set("c3", "t", "3", "n", 1)
         self.snd_talk_fast = pyxel.Sound()
-        self.snd_talk_fast.set("c3", "n", "3", "f", 1)
+        self.snd_talk_fast.set("c3", "t", "3", "f", 1)
         self.snd_talk_faster = pyxel.Sound()
-        self.snd_talk_faster.set("c3", "n", "5", "f", 1)
+        self.snd_talk_faster.set("c3", "t", "5", "f", 1)
 
         pyxel.run(self.update, self.draw)
 
