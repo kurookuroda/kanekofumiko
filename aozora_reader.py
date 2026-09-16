@@ -2,6 +2,7 @@ import pyxel
 import os
 
 # ===== 設定 =====
+# キー: int (フォントサイズ), 値: str (フォントファイルパス)
 FONT_CONFIG = {
     10: "PixelMplus10-Regular.ttf",
     12: "PixelMplus12-Regular.ttf",
@@ -80,18 +81,26 @@ class App:
         pyxel.init(SCREEN_W, SCREEN_H, title="Aozora Reader")
 
         # フォントサイズごとに Font インスタンスを生成
+        # pyxel.Font(filename, font_size) -> font_size は float/int
         self.fonts = {}
         for size, path in FONT_CONFIG.items():
+            # size は int, path は str であることを保証
+            if not isinstance(size, int):
+                raise TypeError(f"FONT_CONFIG のキーは int(サイズ) にしてください: {size!r}")
+            if not isinstance(path, str):
+                raise TypeError(f"FONT_CONFIG の値は str(パス) にしてください: {path!r}")
+
             if os.path.exists(path):
                 self.fonts[size] = pyxel.Font(path, size)
             else:
-                # ファイルがなければデフォルトフォントをフォールバック
-                self.fonts[size] = pyxel.Font(size)
+                # ファイルがない場合はデフォルトフォントを使う（None = 組み込みフォント）
+                self.fonts[size] = None
 
         self.paragraphs = load_paragraphs(FILE_PATH)
 
-        self.current_size = FONT_SIZE_DEFAULT
-        self.font = self.fonts[self.current_size]
+        # current_size は必ず int
+        self.current_size = int(FONT_SIZE_DEFAULT)
+        self.font = self._get_font(self.current_size)
         self.line_height = self.current_size + 6
 
         self._rebuild_pages()
@@ -104,10 +113,14 @@ class App:
 
         pyxel.run(self.update, self.draw)
 
+    def _get_font(self, size):
+        """サイズに対応するフォントを取得。未登録なら None（組み込みフォント）"""
+        return self.fonts.get(int(size))
+
     def _rebuild_pages(self):
         """フォントサイズ変更時に折り返しとページ割りを再計算"""
-        self.font = self.fonts.get(self.current_size, pyxel.Font(self.current_size))
-        self.line_height = self.current_size + 6
+        self.font = self._get_font(self.current_size)
+        self.line_height = int(self.current_size) + 6
         rows_per_page = max(1, (BOX_H - PADDING * 2) // self.line_height)
 
         wrapped = wrap_paragraphs(self.paragraphs, self.font, MAX_TEXT_W)
@@ -122,8 +135,9 @@ class App:
 
     def toggle_font_size(self):
         """10px と 12px を切り替え、ページを再構成して同じページの先頭から再開"""
-        new_size = 10 if self.current_size == 12 else 12
-        self.current_size = new_size
+        # current_size は必ず int として扱う
+        new_size = 10 if int(self.current_size) == 12 else 12
+        self.current_size = int(new_size)
         self._rebuild_pages()
 
         # ページ位置を維持（範囲外なら最終ページに収める）
@@ -143,6 +157,7 @@ class App:
         return ""
 
     def _skip_pressed(self):
+        """文字送りスキップ（ページ表示中のみ有効）"""
         return (
             pyxel.btnp(pyxel.KEY_RETURN)
             or pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT)
@@ -150,24 +165,28 @@ class App:
         )
 
     def _back_pressed(self):
+        """前ページへ戻る"""
         return (
             pyxel.btnp(pyxel.KEY_UP)
             or _btnp(GAMEPAD_UP)
         )
 
     def _next_pressed(self):
+        """次ページへ進む（スキップキーは含めない）"""
         return (
             pyxel.btnp(pyxel.KEY_DOWN)
             or _btnp(GAMEPAD_DOWN)
         )
 
     def _fast_forward(self):
+        """高速表示（長押し）"""
         return (
             pyxel.btn(pyxel.KEY_SPACE)
             or _btn(GAMEPAD_B)
         )
 
     def _reset_pressed(self):
+        """最初からリセット"""
         return (
             pyxel.btnp(pyxel.KEY_R)
             or _btnp(GAMEPAD_SELECT)
@@ -175,6 +194,7 @@ class App:
         )
 
     def _font_toggle_pressed(self):
+        """フォントサイズ切り替え"""
         return (
             pyxel.btnp(pyxel.KEY_F)
             or _btnp(GAMEPAD_X)
@@ -197,6 +217,7 @@ class App:
             return
 
         if self.page_index >= len(self.pages):
+            # 読了後: ↑で最終ページに戻る
             if self._back_pressed() and self.pages:
                 self.page_index = len(self.pages) - 1
                 self.revealed = len(self.current_page_text)
@@ -206,6 +227,7 @@ class App:
         text = self.current_page_text
 
         if not self.page_done:
+            # タイピング中でも ↑ で前ページに戻れる
             if self._back_pressed() and self.page_index > 0:
                 self.page_index -= 1
                 self.revealed = len(self.current_page_text)
@@ -215,7 +237,7 @@ class App:
             if self._skip_pressed():
                 self.revealed = len(text)
                 self.page_done = True
-                self.skip_cooldown = 8
+                self.skip_cooldown = 8  # 連続進行防止
                 return
 
             interval = FAST_INTERVAL if self._fast_forward() else CHAR_INTERVAL
@@ -243,6 +265,7 @@ class App:
     def draw(self):
         pyxel.cls(0)
 
+        # ノベルゲーム風ウィンドウ
         pyxel.rect(BOX_X + 1, BOX_Y + 1, BOX_W - 2, BOX_H - 2, 1)
         pyxel.rectb(BOX_X, BOX_Y, BOX_W, BOX_H, 7)
 
@@ -257,23 +280,24 @@ class App:
             y = BOX_Y + PADDING + i * self.line_height
             pyxel.text(BOX_X + PADDING, y, line, 7, font=self.font)
 
+        # ページ完了後の▼点滅
         if self.page_done and pyxel.frame_count % 30 < 15:
             pyxel.text(BOX_X + BOX_W - 14, BOX_Y + BOX_H - 12, "▼", 7, font=self.font)
 
         self._draw_ui()
 
     def _draw_ui(self):
-        """ページ番号とフォントサイズを右下に表示"""
+        """ページ番号とフォントサイズを表示"""
         if not self.pages:
             return
 
         total = len(self.pages)
         current = min(self.page_index + 1, total)
         page_label = f"{current}/{total}"
-        font_label = f"{self.current_size}px"
+        font_label = f"{int(self.current_size)}px"
 
         # ページ番号（右下）
-        x = BOX_X + BOX_W - PADDING - self.font.text_width(page_label)
+        x = BOX_X + BOX_W - PADDING - (self.font.text_width(page_label) if self.font else len(page_label) * 4)
         y = BOX_Y + BOX_H - 12
         pyxel.text(x, y, page_label, 5, font=self.font)
 
