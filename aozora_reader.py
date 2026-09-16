@@ -132,11 +132,11 @@ class App:
         self.snd_talk = pyxel.Sound()
         self.snd_talk.set("c3", "n", "2", "n", 1)
         self.snd_talk_space = pyxel.Sound()
-        self.snd_talk_space.set("c3", "t", "3", "n", 1)
+        self.snd_talk_space.set("c3", "n", "3", "n", 1)
         self.snd_talk_fast = pyxel.Sound()
-        self.snd_talk_fast.set("c3", "t", "3", "f", 1)
+        self.snd_talk_fast.set("c3", "n", "3", "f", 1)
         self.snd_talk_faster = pyxel.Sound()
-        self.snd_talk_faster.set("c3", "t", "5", "f", 1)
+        self.snd_talk_faster.set("c3", "n", "5", "f", 1)
 
         pyxel.run(self.update, self.draw)
 
@@ -253,22 +253,20 @@ class App:
             self.toggle_font_size()
             return
 
-        # 戻る操作は常に最優先で処理（クールダウン無視）
         if self._back_pressed():
             if self.page_index >= len(self.pages):
-                # 読了後 -> 最終ページに戻る
                 if self.pages:
                     self.page_index = len(self.pages) - 1
                     self.revealed = len(self.current_page_text)
                     self.page_done = True
                     self.skip_cooldown = 5
                 return
-            elif self.page_index > 0:
+            if self.page_index > 0:
                 self.page_index -= 1
                 self.revealed = len(self.current_page_text)
                 self.page_done = True
                 self.skip_cooldown = 5
-                return
+            return
 
         if self.skip_cooldown > 0:
             self.skip_cooldown -= 1
