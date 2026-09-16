@@ -19,11 +19,10 @@ PADDING = 8
 FOOTER_H = 16
 MAX_TEXT_W = BOX_W - PADDING * 2
 
-CHAR_INTERVAL = 2   # 通常速度
-FAST_INTERVAL = 1   # SPACE長押し時
+CHAR_INTERVAL = 2   # 通常: 2フレームに1文字
+FAST_INTERVAL = 1   # SPACE長押し: 1フレームに1文字
 FILE_PATH = "aozora_416.txt"
 
-# ゲームパッド定数の安全な取得
 GAMEPAD_A = getattr(pyxel, "GAMEPAD1_BUTTON_A", None)
 GAMEPAD_B = getattr(pyxel, "GAMEPAD1_BUTTON_B", None)
 GAMEPAD_X = getattr(pyxel, "GAMEPAD1_BUTTON_X", None)
@@ -109,14 +108,19 @@ class App:
         self.page_done = False
         self.skip_cooldown = 0
 
-        # ---- タイプライター音（ドラクエ風 ノイズ音）----
-        # 音程はすべて c3 で統一。speed だけ変えて再生長を調整
-        self.snd_talk_slow = pyxel.Sound()
-        self.snd_talk_slow.set("c3", "n", "1", "n", 1)    # 通常: 長め
+        # ---- タイプライター音（音程 c3 固定、音量・effectで区別）----
+        # 通常
+        self.snd_talk = pyxel.Sound()
+        self.snd_talk.set("c3", "n", "2", "n", 1)
+        # SPACE長押し（中速）
+        self.snd_talk_space = pyxel.Sound()
+        self.snd_talk_space.set("c3", "n", "3", "n", 1)
+        # DOWN+A（高速・短く鋭く）
         self.snd_talk_fast = pyxel.Sound()
-        self.snd_talk_fast.set("c3", "t", "1", "n", 3)    # 高速: 短め
+        self.snd_talk_fast.set("c3", "n", "3", "f", 1)
+        # DOWN+B（最速・さらに大きく短く）
         self.snd_talk_faster = pyxel.Sound()
-        self.snd_talk_faster.set("c3", "t", "1", "n", 6)  # 最速: 最短
+        self.snd_talk_faster.set("c3", "n", "5", "f", 1)
 
         pyxel.run(self.update, self.draw)
 
@@ -230,13 +234,13 @@ class App:
     def _get_typing_speed(self):
         """
         優先順位:
-        1. DOWN + B -> 毎フレーム 2文字
+        1. DOWN + B -> 毎フレーム 3文字（Aの3倍速）
         2. DOWN + A -> 毎フレーム 1文字
         3. SPACE    -> 1フレームに1文字
         4. それ以外 -> 通常速度
         """
         if self._super_speed_combo():
-            return 0, 2
+            return 0, 3
         if self._speed_combo():
             return 0, 1
         if self._space_held():
@@ -245,14 +249,14 @@ class App:
 
     def _play_talk_sound(self, interval, chars_per_tick):
         """タイピング速度に応じたドラクエ風話し声を再生。音程は常に同じ"""
-        if interval == 0 and chars_per_tick >= 2:
+        if interval == 0 and chars_per_tick >= 3:
             pyxel.play(0, self.snd_talk_faster)
-        elif interval == 0:
+        elif interval == 0 and chars_per_tick == 1:
             pyxel.play(0, self.snd_talk_fast)
-        elif interval == 1:
-            pyxel.play(0, self.snd_talk_fast)
+        elif interval == FAST_INTERVAL:
+            pyxel.play(0, self.snd_talk_space)
         else:
-            pyxel.play(0, self.snd_talk_slow)
+            pyxel.play(0, self.snd_talk)
 
     def update(self):
         if pyxel.btnp(pyxel.KEY_Q) or pyxel.btnp(pyxel.KEY_ESCAPE):
