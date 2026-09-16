@@ -111,13 +111,12 @@ class App:
         self.skip_cooldown = 0
 
         # ---- タイプライター音（ドラクエ風 ノイズ音）----
-        # interval に応じて3段階の音を使い分け
         self.snd_talk_slow = pyxel.Sound()
-        self.snd_talk_slow.set("c3", "n", "2", "n", 1)      # 遅い: 低め・長め
+        self.snd_talk_slow.set("c3", "t", "2", "n", 1)
         self.snd_talk_fast = pyxel.Sound()
-        self.snd_talk_fast.set("e3", "n", "2", "n", 2)      # 速い: 高め・短め
+        self.snd_talk_fast.set("e3", "t", "2", "n", 2)
         self.snd_talk_faster = pyxel.Sound()
-        self.snd_talk_faster.set("g3", "n", "2", "n", 4)    # 最速: もっと高く短く
+        self.snd_talk_faster.set("g3", "t", "2", "n", 4)
 
         pyxel.run(self.update, self.draw)
 
@@ -163,6 +162,7 @@ class App:
 
     # ---- 入力判定 ----
     def _skip_pressed(self):
+        """即表示スキップ（文字送り中のみ）"""
         return (
             pyxel.btnp(pyxel.KEY_RETURN)
             or pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT)
@@ -170,16 +170,22 @@ class App:
         )
 
     def _back_pressed(self):
+        """前ページへ戻る"""
         return (
             pyxel.btnp(pyxel.KEY_UP)
             or _btnp(GAMEPAD_UP)
         )
 
     def _next_pressed(self):
-        # DOWN は文字送り加速に専念させるため、次ページ進行から外す
+        """
+        次ページへ進む（ページ完了後のみ）。
+        ↓ / ENTER / クリック / Aボタン で進行。
+        """
         return (
-            pyxel.btnp(pyxel.KEY_RETURN)
+            pyxel.btnp(pyxel.KEY_DOWN)
+            or pyxel.btnp(pyxel.KEY_RETURN)
             or pyxel.btnp(pyxel.MOUSE_BUTTON_LEFT)
+            or _btnp(GAMEPAD_DOWN)
             or _btnp(GAMEPAD_A)
         )
 
@@ -198,20 +204,19 @@ class App:
 
     def _get_typing_speed(self):
         """
-        現在の入力に応じた (interval, chars_per_tick) を返す。
-        interval: 何フレームに1回文字を進めるか（0=毎フレーム）
-        chars_per_tick: 1回の進行で何文字進めるか
+        文字送り中の速度を決定。
+        ↓単独: 通常, ↓+A: 高速, ↓+B: 最速, SPACE: 高速
+        戻り値: (interval, chars_per_tick)
         """
         down = pyxel.btn(pyxel.KEY_DOWN) or _btn(GAMEPAD_DOWN)
-        shift = pyxel.btn(pyxel.KEY_SHIFT) or _btn(GAMEPAD_A)   # 右の右側ボタン相当
-        ctrl = pyxel.btn(pyxel.KEY_CTRL) or _btn(GAMEPAD_B)     # 右の下側ボタン相当
-        space = pyxel.btn(pyxel.KEY_SPACE) or _btn(GAMEPAD_B)
+        a_btn = pyxel.btn(pyxel.KEY_Z) or _btn(GAMEPAD_A)   # 右側の右ボタン
+        b_btn = pyxel.btn(pyxel.KEY_X) or _btn(GAMEPAD_B)   # 右側の下ボタン
+        space = pyxel.btn(pyxel.KEY_SPACE)
 
-        # 優先順位: 最速（DOWN+B/CTRL）> 高速（DOWN+A/SHIFT）> 中速（DOWN/SPACE）> 通常
-        if down and ctrl:
+        if down and b_btn:
             return 0, 2          # 毎フレーム 2文字
-        if down and shift:
-            return 0, 1          # 毎フレーム 1文字（音は高め）
+        if down and a_btn:
+            return 0, 1          # 毎フレーム 1文字
         if down or space:
             return FAST_INTERVAL, 1
         return CHAR_INTERVAL, 1
@@ -253,7 +258,7 @@ class App:
         text = self.current_page_text
 
         if not self.page_done:
-            # タイピング中でも ↑ で前ページに戻れる
+            # ---- 文字送り中 ----
             if self._back_pressed() and self.page_index > 0:
                 self.page_index -= 1
                 self.revealed = len(self.current_page_text)
@@ -273,7 +278,6 @@ class App:
                 advanced = False
 
                 for _ in range(chars_per_tick):
-                    # 改行はスキップ
                     while self.revealed < len(text) and text[self.revealed] == "\n":
                         self.revealed += 1
                     if self.revealed < len(text):
@@ -289,6 +293,7 @@ class App:
                     self.skip_cooldown = 5  # DOWN長押し誤爆防止
 
         else:
+            # ---- ページ表示完了後 ----
             if self._next_pressed():
                 self.page_index += 1
                 self.revealed = 0
