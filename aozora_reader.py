@@ -12,12 +12,13 @@ FONT_SIZE_DEFAULT = 12
 SCREEN_W = 256
 SCREEN_H = 256
 
-# テキストエリア（イラスト無しの現段階では上の背景を減らして広く取る）
+# テキストエリア（イラスト無しの現段階では上の余白は不要なので左右と同じ8pxに統一）
 BOX_X = 8
-BOX_Y = 40    # 160 -> 40 に変更。上の空白（背景）を縮小
+BOX_Y = 8     # 40 -> 8 に変更。上部の背景余白を撤去
 BOX_W = 240
-BOX_H = 208   # 88 -> 208 に変更。テキストエリアを縦に拡大
+BOX_H = 240   # 208 -> 240 に変更。上を詰めた分テキストエリアをさらに拡大
 PADDING = 8
+FOOTER_H = 16  # 右下のページ数・左下のフォントサイズ表示を確保する高さ（本文行と重ならないようにする）
 MAX_TEXT_W = BOX_W - PADDING * 2
 
 CHAR_INTERVAL = 2   # 通常時: 何フレームで1文字進めるか
@@ -122,7 +123,7 @@ class App:
         """フォントサイズ変更時に折り返しとページ割りを再計算"""
         self.font = self._get_font(self.current_size)
         self.line_height = int(self.current_size) + 6
-        rows_per_page = max(1, (BOX_H - PADDING * 2) // self.line_height)
+        rows_per_page = max(1, (BOX_H - PADDING * 2 - FOOTER_H) // self.line_height)
 
         wrapped = wrap_paragraphs(self.paragraphs, self.font, MAX_TEXT_W)
         self.pages = paginate(wrapped, rows_per_page)
@@ -298,8 +299,9 @@ class App:
         font_label = f"{int(self.current_size)}px"
 
         # ページ番号（右下）
+        # 12px/10px どちらでも枠線をはみ出さないよう、フォントサイズ分を引いて位置を決める
         x = BOX_X + BOX_W - PADDING - (self.font.text_width(page_label) if self.font else len(page_label) * 4)
-        y = BOX_Y + BOX_H - 12
+        y = BOX_Y + BOX_H - PADDING - self.current_size
         pyxel.text(x, y, page_label, 5, font=self.font)
 
         # フォントサイズ表示（左下）
