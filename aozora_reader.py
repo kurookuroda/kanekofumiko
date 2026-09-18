@@ -68,7 +68,7 @@ def load_paragraphs(path):
         return ["（ファイルが見つかりません）"]
     with open(path, encoding="utf-8") as f:
         raw = f.read()
-    return raw.split("\n")
+    return raw.splitlines()
 
 
 def wrap_paragraphs(paragraphs, font, max_w):
